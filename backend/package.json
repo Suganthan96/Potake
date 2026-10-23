@@ -1,0 +1,32 @@
+{
+  "name": "potake",
+  "version": "0.1.0",
+  "description": "Staking bridge and policy agent for Portaldot V3",
+  "license": "MIT",
+  "private": true,
+  "bin": {
+    "potake": "./src/index.mjs"
+  },
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:testnet": "hardhat run scripts/deploy.js --network portaldotV3",
+    "deploy:revive": "node scripts/deploy-revive.mjs",
+    "preflight": "node scripts/preflight.mjs",
+    "relay": "node src/index.mjs relay",
+    "agent": "node src/index.mjs agent",
+    "agent:dry": "node src/index.mjs agent --dry-run",
+    "status": "node src/index.mjs status",
+    "test:integration": "node e2e/integration.mjs"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@parity/resolc": "^1.4.0",
+    "hardhat": "^2.22.0"
+  },
+  "dependencies": {
+    "@polkadot/api": "^16.0.0",
+    "dotenv": "^16.4.0",
+    "ethers": "^6.13.0"
+  }
+}
