@@ -5,7 +5,7 @@ import { Keyring }              from '@polkadot/keyring';
 import { cryptoWaitReady }      from '@polkadot/util-crypto';
 import { getApi }               from '../chain/substrate.mjs';
 import { getProvider, getOracleContract, getRegistryContract } from '../chain/evm.mjs';
-import { MANAGED_ACCOUNTS, ORACLE_ADDRESS, REGISTRY_ADDRESS }  from '../config.mjs';
+import { MANAGED_ACCOUNTS, STAKING_ACCOUNT_SS58, ORACLE_ADDRESS, REGISTRY_ADDRESS } from '../config.mjs';
 import { evaluatePolicy, bytes32ToSS58 }   from './evaluate.mjs';
 import { submitNominate, logAction }        from './nominate.mjs';
 
@@ -68,15 +68,23 @@ export async function runAgent({ keystorePath, password, dryRun = false } = {}) 
 
     // Resolve the EVM address (H160) for this account to look up its policy
     let policyOwnerEVM;
-    try {
-      policyOwnerEVM = await api.call.reviveApi.address(accountSS58);
-      policyOwnerEVM = policyOwnerEVM.toString();
-    } catch {
-      // Fallback: derive H160 from the account's mapped address
-      console.warn('[agent] reviveApi.address failed, skipping account');
-      continue;
+    if (/^0x[0-9a-fA-F]{40}$/.test(accountSS58)) {
+      // Already an EVM address — use directly
+      policyOwnerEVM = accountSS58;
+    } else {
+      try {
+        policyOwnerEVM = await api.call.reviveApi.address(accountSS58);
+        policyOwnerEVM = policyOwnerEVM.toString();
+      } catch {
+        console.warn('[agent] reviveApi.address failed, skipping account');
+        continue;
+      }
     }
     console.log(`[agent] EVM policy owner: ${policyOwnerEVM}`);
+
+    // Resolve the SS58 account used for Substrate staking operations
+    // Priority: STAKING_ACCOUNT_SS58 env > policy.stakingAccount > skip
+    let stakingAccountSS58 = STAKING_ACCOUNT_SS58 || null;
 
     // Read policy from registry
     let policy;
@@ -93,14 +101,22 @@ export async function runAgent({ keystorePath, password, dryRun = false } = {}) 
         maxValidators:  Number(p.maxValidators),
         version:        Number(p.version),
       };
+      // If no env SS58, try to decode bytes32 stakingAccount → SS58
+      if (!stakingAccountSS58) {
+        try {
+          stakingAccountSS58 = bytes32ToSS58(api, policy.stakingAccount);
+        } catch {}
+      }
       console.log(`[agent] policy v${policy.version}  maxShare=${policy.maxShareBps}bps  minUptime=${policy.minUptimeBps}bps  maxValidators=${policy.maxValidators}`);
+      console.log(`[agent] staking SS58: ${stakingAccountSS58 || '(unknown — will skip nomination check)'}`);
     } catch (e) {
       console.warn(`[agent] could not read policy: ${e.message}`);
       continue;
     }
 
-    // Evaluate
-    const { violations, rule, currentNoms, suggestedSet } = await evaluatePolicy(policy, snapshot, accountSS58);
+    // Evaluate — use SS58 for Substrate nominations lookup
+    const substrateAccount = stakingAccountSS58 || accountSS58;
+    const { violations, rule, currentNoms, suggestedSet } = await evaluatePolicy(policy, snapshot, substrateAccount);
 
     if (violations.length === 0) {
       console.log('[agent] ✓ all rules satisfied, no action needed');

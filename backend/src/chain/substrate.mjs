@@ -1,11 +1,15 @@
 import { ApiPromise, WsProvider } from '@polkadot/api';
 import { SUBSTRATE_WS } from '../config.mjs';
 
+// Portaldot V3 testnet uses a Fortinet corporate CA (FG4H0ETB20904227) for TLS inspection.
+// This CA is not in standard trust stores; disable verification for this test-only endpoint.
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 let _api = null;
 
 export async function getApi() {
   if (_api) return _api;
-  const provider = new WsProvider(SUBSTRATE_WS, 1000, {}, 30_000);
+  const provider = new WsProvider(SUBSTRATE_WS, 1000, {}, 60_000);
   _api = await ApiPromise.create({ provider });
   await _api.isReady;
   const { specName, specVersion } = _api.runtimeVersion;

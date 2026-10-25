@@ -1,42 +1,45 @@
-// Deploys StakingOracle, PolicyRegistry and GatedVault, then writes deployments.json.
-// Usage: npx hardhat run scripts/deploy.js --network portaldotV3
-// Requires DEPLOYER_PRIVATE_KEY (EVM test key) in .env. Never commit the key.
+const { ethers } = require("hardhat");
 const fs = require("fs");
-const hre = require("hardhat");
+const path = require("path");
 
 async function main() {
-  const [deployer] = await hre.ethers.getSigners();
-  const relayer = process.env.RELAYER_ADDRESS || deployer.address;
-  const agent = process.env.AGENT_ADDRESS || deployer.address;
-  const minUptimeBps = Number(process.env.VAULT_MIN_UPTIME_BPS || 9500);
+  const [deployer] = await ethers.getSigners();
+  console.log("Deployer:", deployer.address);
 
-  console.log("Network  :", hre.network.name);
-  console.log("Deployer :", deployer.address);
-  console.log("Relayer  :", relayer);
-  console.log("Agent    :", agent);
+  const bal = await ethers.provider.getBalance(deployer.address);
+  console.log("Balance:", ethers.formatEther(bal), "tPOT");
 
-  const out = { network: hre.network.name, deployer: deployer.address, contracts: {} };
+  // 1. StakingOracle
+  console.log("\nDeploying StakingOracle...");
+  const Oracle = await ethers.getContractFactory("StakingOracle");
+  const oracle = await Oracle.deploy(deployer.address);
+  await oracle.waitForDeployment();
+  const oracleAddr = await oracle.getAddress();
+  console.log("StakingOracle:", oracleAddr);
 
-  async function deploy(name, args) {
-    const factory = await hre.ethers.getContractFactory(name);
-    const c = await factory.deploy(...args);
-    const tx = c.deploymentTransaction();
-    await c.waitForDeployment();
-    const address = await c.getAddress();
-    console.log(`${name.padEnd(15)} ${address}  tx ${tx.hash}`);
-    out.contracts[name] = { address, deployTx: tx.hash };
-    return address;
-  }
+  // 2. PolicyRegistry
+  console.log("\nDeploying PolicyRegistry...");
+  const Registry = await ethers.getContractFactory("PolicyRegistry");
+  const registry = await Registry.deploy(deployer.address);
+  await registry.waitForDeployment();
+  const registryAddr = await registry.getAddress();
+  console.log("PolicyRegistry:", registryAddr);
 
-  const oracle = await deploy("StakingOracle", [relayer]);
-  await deploy("PolicyRegistry", [agent]);
-  await deploy("GatedVault", [oracle, minUptimeBps]);
+  // 3. GatedVault
+  console.log("\nDeploying GatedVault...");
+  const Vault = await ethers.getContractFactory("GatedVault");
+  const vault = await Vault.deploy(oracleAddr, 9500);
+  await vault.waitForDeployment();
+  const vaultAddr = await vault.getAddress();
+  console.log("GatedVault:", vaultAddr);
 
-  fs.writeFileSync("deployments.json", JSON.stringify(out, null, 2));
-  console.log("Saved deployments.json (put these addresses and tx hashes in the README).");
+  // Save deployments
+  const deployments = { StakingOracle: oracleAddr, PolicyRegistry: registryAddr, GatedVault: vaultAddr };
+  fs.writeFileSync(path.join(__dirname, "../deployments.json"), JSON.stringify(deployments, null, 2));
+  console.log("\ndeployments.json written.");
+  console.log("\nAdd to .env:");
+  console.log("ORACLE_ADDRESS=" + oracleAddr);
+  console.log("REGISTRY_ADDRESS=" + registryAddr);
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exitCode = 1;
-});
+main().catch(e => { console.error(e); process.exit(1); });

@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
+
+:root {
+  --bg:      #121212;
+  --cream:   #E8E0D4;
+  --orange:  #F3A35D;
+  --teal:    #8FB9A8;
+  --orange-d:#C87941;
+  --muted:   rgba(232,224,212,0.45);
+  --border:  rgba(232,224,212,0.12);
+  --surface: rgba(232,224,212,0.05);
+  --font:    'Instrument Serif', Georgia, serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--cream);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--orange); color: var(--bg); }
+
+.btn-primary {
+  background: none;
+  border: 1px solid var(--cream);
+  color: var(--cream);
+  padding: 12px 28px;
+  font-family: var(--font);
+  font-size: 17px;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: background 0.2s, color 0.2s;
+}
+.btn-primary:hover    { background: var(--cream); color: var(--bg); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
