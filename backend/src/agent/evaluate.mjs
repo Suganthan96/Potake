@@ -45,6 +45,12 @@ export async function evaluatePolicy(policy, snapshot, managedAccountSS58) {
   const currentNoms = await getCurrentNominations(api, managedAccountSS58);
   console.log(`[agent] account=${managedAccountSS58} current nominations: ${currentNoms.length}`);
 
+  // ── Rule 0: no nominations at all ─────────────────────────────────────
+  if (currentNoms.length === 0) {
+    violations.push('no active nominations — policy requires nominating compliant validators');
+    if (!firstRule) firstRule = RULE_MIN_UPTIME;
+  }
+
   // ── Rule 2: min uptime ─────────────────────────────────────────────────
   const unhealthy = currentNoms.filter(ss58 => {
     const v = validatorsBySS58[ss58];
