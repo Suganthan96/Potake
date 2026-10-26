@@ -291,6 +291,26 @@ A Three.js 3D scene rendered on every dashboard page — a LatheGeometry pot, Cy
 
 ---
 
+## Portaldot V3 Technologies Used
+
+Potake is built directly on top of the Portaldot V3 stack. Below is every Portaldot-specific technology used and how Potake uses it.
+
+| Technology | What it is | How Potake uses it |
+|------------|-----------|-------------------|
+| **pallet-revive** | Substrate pallet that executes EVM bytecode via PolkaVM ([docs](https://paritytech.github.io/revive/)) | All three smart contracts (`StakingOracle`, `PolicyRegistry`, `GatedVault`) run inside pallet-revive |
+| **PolkaVM** | Register-based VM that executes compiled Solidity on Polkadot ([docs](https://github.com/paritytech/polkavm)) | Contracts are compiled with `resolc` (Revive's Solidity compiler) targeting PolkaVM |
+| **`revive.instantiateWithCode`** | Substrate extrinsic for deploying EVM bytecode on pallet-revive ([docs](https://paritytech.github.io/revive/deployment.html)) | Deploy script calls this extrinsic instead of `eth_sendRawTransaction` — the only way to deploy on Portaldot V3 |
+| **`@parity/resolc`** | Revive's Solidity → PolkaVM compiler (`v1.4.0`) ([npm](https://www.npmjs.com/package/@parity/resolc)) | Compiles all `.sol` contracts; `allowEVMBytecode: true` reduces storage deposit ~7× vs native PolkaVM bytecode |
+| **EVM RPC (`eth_*`)** | Standard Ethereum JSON-RPC interface exposed by pallet-revive ([endpoint](https://test-evm-rpc-v3.portaldot.dev)) | Frontend and agent use `eth_call`, `eth_sendRawTransaction`, `eth_estimateGas` via ethers v6 |
+| **Revive gas model** | `eth_estimateGas` returns Substrate weight units, not EVM gas | All contract calls run `provider.estimateGas()` and pass the result directly as `gasLimit` — never hard-coded |
+| **Revive storage deposits** | Each new storage slot costs a tPOT deposit ([docs](https://paritytech.github.io/revive/storage.html)) | Oracle uses latest-slot overwrite (not append-only) to avoid unbounded deposit growth each era |
+| **`api.call.reviveApi.address`** | Substrate RPC that converts an SS58 address to its EVM H160 counterpart | Agent uses this to resolve the EVM address for a Substrate account when looking up its policy |
+| **`@polkadot/api`** | Polkadot JavaScript API for Substrate RPC + extrinsics ([docs](https://polkadot.js.org/docs/api/)) | Relayer reads `erasStakers`, `session.validators`; agent reads `staking.nominators`, submits `staking.bond` + `staking.nominate` |
+| **pallet-staking** | Substrate pallet managing nominations, eras, and validator selection ([docs](https://docs.substrate.io/reference/frame-pallets/#staking)) | Agent submits `staking.bond` and `staking.nominate` extrinsics signed by an sr25519 keypair |
+| **sr25519 keypair** | Schnorr/Ristretto signature scheme used natively on Polkadot ([docs](https://docs.substrate.io/reference/cryptography/)) | Agent loads a JSON keystore and signs Substrate extrinsics via `@polkadot/keyring` |
+
+---
+
 ## Policy Rules
 
 | Constant | Value | Meaning |
