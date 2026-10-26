@@ -5,9 +5,13 @@ import { getRelayerSigner, getRegistryContract } from '../chain/evm.mjs';
 import { ethers } from 'ethers';
 
 // Send a single extrinsic and wait for finalization.
+// Resolves with the extrinsic hash (not the block hash).
 function sendAndWait(api, tx, pair) {
   return new Promise((resolve, reject) => {
-    tx.signAndSend(pair, ({ status, dispatchError }) => {
+    let extHash = null;
+    tx.signAndSend(pair, ({ status, dispatchError, txHash }) => {
+      // txHash is available from the first status update
+      if (txHash && !extHash) extHash = txHash.toHex();
       if (dispatchError) {
         if (dispatchError.isModule) {
           const decoded = api.registry.findMetaError(dispatchError.asModule);
@@ -17,7 +21,7 @@ function sendAndWait(api, tx, pair) {
         }
         return;
       }
-      if (status.isFinalized) resolve(status.asFinalized.toHex());
+      if (status.isFinalized) resolve(extHash ?? txHash?.toHex() ?? status.asFinalized.toHex());
     }).catch(reject);
   });
 }

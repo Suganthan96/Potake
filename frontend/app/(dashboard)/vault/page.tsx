@@ -5,7 +5,7 @@ import { useDashboard } from '../DashboardContext';
 import { ADDRESSES, VAULT_ABI, EVM_RPC } from '@/lib/contracts';
 import TxLink from '@/components/TxLink';
 
-const fmt   = (v: bigint, d = 4) => Number(ethers.formatEther(v)).toFixed(d);
+const fmt   = (v: bigint, d = 4) => (Number(v) / 1e14).toFixed(d);
 const bps   = (n: number) => `${(n / 100).toFixed(0)}%`;
 const short = (s: string) => s.slice(0, 6) + '…' + s.slice(-4);
 

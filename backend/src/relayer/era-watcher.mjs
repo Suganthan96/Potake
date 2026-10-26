@@ -50,6 +50,7 @@ export async function runRelayer() {
   const oracle = getOracleContract(signer);
 
   let lastRelayedEra = 0;
+  let publishing = false; // prevent overlapping publishes
   try {
     lastRelayedEra = Number(await oracle.latestEra());
   } catch (e) {
@@ -58,6 +59,7 @@ export async function runRelayer() {
   console.log(`[relayer] started  relayer=${signer.address}  oracle last era=${lastRelayedEra}`);
 
   const check = async () => {
+    if (publishing) { console.log('[relayer] publish in progress, skipping tick'); return; }
     try {
       const activeEraOpt = await api.query.staking.activeEra();
       if (activeEraOpt.isNone) return;
@@ -77,11 +79,16 @@ export async function runRelayer() {
       }
 
       console.log(`[relayer] publishing era ${snap.era}: ${snap.ids.length} validators  totalStake=${snap.totalStake}`);
-      const tx = await withRetry('publish', () => publishWithGas(oracle, snap));
-      console.log(`[relayer] tx sent  ${tx.hash}`);
-      const receipt = await tx.wait();
-      console.log(`[relayer] confirmed block=${receipt.blockNumber}  gasUsed=${receipt.gasUsed}  era=${snap.era}`);
-      lastRelayedEra = snap.era;
+      publishing = true;
+      try {
+        const tx = await withRetry('publish', () => publishWithGas(oracle, snap));
+        console.log(`[relayer] tx sent  ${tx.hash}`);
+        const receipt = await tx.wait();
+        console.log(`[relayer] confirmed block=${receipt.blockNumber}  gasUsed=${receipt.gasUsed}  era=${snap.era}`);
+        lastRelayedEra = snap.era;
+      } finally {
+        publishing = false;
+      }
     } catch (err) {
       console.error('[relayer] check error:', err.message);
     }

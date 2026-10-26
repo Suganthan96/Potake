@@ -57,7 +57,7 @@ Anyone — including hackathon judges — can query `registry.actionCount(stakin
 | **4. Relayer** | Every era: reads `erasStakers` + `session.validators` from Substrate → calls `oracle.publish(era, validators, stakes)` |
 | **5. Agent evaluates** | Reads oracle snapshot + policy rules + current nominations → checks 3 rules |
 | **6. Agent acts** | On any violation: auto-bonds if needed → submits `staking.nominate(compliantSet)` → calls `registry.logAction(...)` |
-| **7. Audit** | `registry.actionCount(key)` and `registry.actions(key, i)` give full immutable history: era, rule broken, extrinsic hash, before/after nomination sets |
+| **7. Audit** | `registry.actionCount(key)` and `registry.getAction(key, i)` give full immutable history: era, rule broken, extrinsic hash, before/after nomination sets |
 
 ---
 
@@ -71,7 +71,7 @@ Anyone — including hackathon judges — can query `registry.actionCount(stakin
 │                        ├── Oracle page  (live validator data,          │
 │                        │                 agent action counter)         │
 │                        ├── Policy page  (set staking rules on-chain)   │
-│                        └── Vault page   (bond / unbond / withdraw)     │
+│                        └── Vault page   (GatedVault deposit demo)     │
 │                                                                        │
 │   WalletButton (RainbowKit)  ──  wagmi v2  ──  ethers v6               │
 │   WorldCanvas (Three.js 3D)  visible on every dashboard page           │
@@ -88,7 +88,7 @@ Anyone — including hackathon judges — can query `registry.actionCount(stakin
 │  │  validatorIds()      │   │  policies(owner)  → rules             │  │
 │  │  validatorInfo(id)   │   │  logAction(...)   → append-only log   │  │
 │  │  isHealthy(id, bps)  │   │  actionCount(key) → on-chain proof    │  │
-│  │  stakeShareBps(id)   │   │  actions(key, i)  → full audit trail  │  │
+│  │  stakeShareBps(id)   │   │  getAction(key, i)  → full audit trail  │  │
 │  └──────────┬───────────┘   └──────────────────────────────────────┘  │
 │             │ IStakingView                                              │
 │  ┌──────────▼───────────┐                                              │
@@ -183,7 +183,7 @@ sequenceDiagram
     Note over U,RG: Audit — anytime, by anyone
     U->>RG: actionCount(stakingAccountBytes32)
     RG-->>U: N — on-chain proof of autonomous agent activity
-    U->>RG: actions(stakingAccountBytes32, index)
+    U->>RG: getAction(stakingAccountBytes32, index)
     RG-->>U: Action { era, ruleBroken, extrinsicHash, fromSetHash, toSetHash, loggedAt }
 ```
 
@@ -244,7 +244,7 @@ Stores each user's staking policy and an append-only log of every action the age
 | `setPolicy(stakingAccount, maxShareBps, minUptimeBps, maxValidators)` | user | Stores rules on-chain; increments version |
 | `logAction(owner, era, version, rule, extHash, fromHash, toHash)` | agent | Appends immutable action record |
 | `actionCount(stakingAccount)` | anyone | Number of agent actions — **on-chain proof** |
-| `actions(stakingAccount, index)` | anyone | Full action detail by index |
+| `getAction(stakingAccount, index)` | anyone | Full action detail by index |
 
 ### `GatedVault` — Demo Consumer
 
@@ -262,7 +262,7 @@ Where users define their staking rules on-chain. Set `minUptimeBps` (minimum val
 
 ### Vault Page
 
-Where users manage the bonded funds backing their staking policy. Shows bonded balance, free balance, and current staking status. Actions: **Bond more** (lock additional funds), **Unbond** (start the unbonding period), **Withdraw** (claim after unbonding), **Rebond** (cancel an unbond). The agent's `staking.nominate` only works if funds are bonded — on first run the agent auto-bonds `max(minNominatorBond, existentialDeposit)` if the account has never bonded before.
+A demo of the `GatedVault` contract — an `IStakingView` consumer that only accepts a deposit if the chosen validator is currently healthy according to the oracle. Select a validator from the list, enter an amount, and submit — the vault calls `oracle.isHealthy(validatorId, minUptimeBps)` on-chain and reverts with `ValidatorUnhealthy` if the validator does not meet the threshold. This exists to show that any EVM contract can compose with `IStakingView`; it does not manage bonded staking funds.
 
 ### Oracle Page
 

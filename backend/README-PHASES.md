@@ -77,11 +77,13 @@ npm run status
 
 Deployed contracts (fill in after deploying to testnet):
 
-| Contract | Address | Deploy tx |
-|---|---|---|
-| StakingOracle | TBD | TBD |
-| PolicyRegistry | TBD | TBD |
-| GatedVault | TBD | TBD |
+| Contract | Address |
+|---|---|
+| StakingOracle | `0x0bfB6f131A99D5aaA3071618FFBD5bb3ea87C619` |
+| PolicyRegistry | `0x68283AAa8899A4aA299141ca6f04dF8e5802509f` |
+| GatedVault | deployed alongside registry |
+
+> Network: Portaldot V3 · Chain ID 420420777
 
 ## Limits
 - The relayer and agent are **trusted**. The registry records what they did; it cannot force them to follow a policy.

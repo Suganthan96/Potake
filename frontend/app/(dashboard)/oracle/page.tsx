@@ -4,7 +4,7 @@ import { ethers } from 'ethers';
 import { useEffect, useState } from 'react';
 import { ADDRESSES, REGISTRY_ABI, EVM_RPC } from '@/lib/contracts';
 
-const fmt   = (v: bigint, d = 2) => Number(ethers.formatEther(v)).toFixed(d);
+const fmt   = (v: bigint, d = 2) => (Number(v) / 1e14).toFixed(d);
 const bps   = (n: number) => `${(n / 100).toFixed(0)}%`;
 const short = (s: string) => s.slice(0, 6) + '…' + s.slice(-4);
 
@@ -20,7 +20,8 @@ export default function OraclePage() {
         const ro  = new ethers.JsonRpcProvider(EVM_RPC);
         const reg = new ethers.Contract(ADDRESSES.registry, REGISTRY_ABI, ro);
         // actionCount keyed by stakingAccount (bytes32 version of address)
-        const stakingKey = ethers.zeroPadValue(address, 32);
+        // Use policy.stakingAccount (bytes32 public key) — not the zero-padded EVM address
+        const stakingKey = policy?.stakingAccount ?? ethers.zeroPadValue(address, 32);
         const count = await reg.actionCount(stakingKey);
         setActionCount(Number(count));
       } catch {}
@@ -28,7 +29,7 @@ export default function OraclePage() {
     load();
     const id = setInterval(load, 15_000);
     return () => clearInterval(id);
-  }, [address, policy?.active]);
+  }, [address, policy]);
 
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: '20px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>

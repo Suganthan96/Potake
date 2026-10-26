@@ -40,17 +40,18 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     try {
       const ro = new ethers.JsonRpcProvider(EVM_RPC);
       const oracle = new ethers.Contract(ADDRESSES.oracle, ORACLE_ABI, ro);
-      const [snapRaw, ids, vaultMin] = await Promise.all([
+      const [snapRaw, ids, vaultMinRaw] = await Promise.all([
         oracle.snapshot(),
         oracle.validatorIds(),
         (new ethers.Contract(ADDRESSES.vault, VAULT_ABI, ro)).minUptimeBps(),
       ]);
+      const vaultMin = Number(vaultMinRaw);
       const validators: ValidatorInfo[] = await Promise.all(
         ids.map(async (id: string) => {
           const [info, shareBps, healthy] = await Promise.all([
             oracle.validatorInfo(id),
             oracle.stakeShareBps(id),
-            oracle.isHealthy(id, 9000),
+            oracle.isHealthy(id, vaultMin),
           ]);
           return { id, totalStake: info.totalStake, commissionBps: Number(info.commissionBps), uptimeBps: Number(info.uptimeBps), active: info.active, shareBps: Number(shareBps), healthy };
         })

@@ -1,9 +1,11 @@
 import { ApiPromise, WsProvider } from '@polkadot/api';
 import { SUBSTRATE_WS } from '../config.mjs';
 
-// Portaldot V3 testnet uses a Fortinet corporate CA (FG4H0ETB20904227) for TLS inspection.
-// This CA is not in standard trust stores; disable verification for this test-only endpoint.
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+// Portaldot V3 testnet WS endpoint sits behind a Fortinet CA not in standard trust stores.
+// Scoped to testnet only — do not carry this into production.
+if (process.env.NODE_ENV !== 'production') {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
 
 let _api = null;
 

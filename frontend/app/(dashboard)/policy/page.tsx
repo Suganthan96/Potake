@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { ethers } from 'ethers';
+import { decodeAddress } from '@polkadot/util-crypto';
 import { useDashboard } from '../DashboardContext';
 import { ADDRESSES, REGISTRY_ABI } from '@/lib/contracts';
 import TxLink from '@/components/TxLink';
@@ -24,9 +25,14 @@ export default function PolicyPage() {
     try {
       const signer = await provider.getSigner();
       const reg = new ethers.Contract(ADDRESSES.registry, REGISTRY_ABI, signer);
-      const stakingBytes32 = pStaking
-        ? ethers.zeroPadBytes(ethers.toUtf8Bytes(pStaking).slice(0, 32), 32)
-        : ethers.zeroPadValue(address, 32);
+      let stakingBytes32: string;
+      if (pStaking.trim()) {
+        // Decode SS58 → 32-byte public key, then hex-encode as bytes32
+        const pubKey = decodeAddress(pStaking.trim());
+        stakingBytes32 = '0x' + Buffer.from(pubKey).toString('hex');
+      } else {
+        stakingBytes32 = ethers.zeroPadValue(address, 32);
+      }
       const t = await signer.sendTransaction({
         to: ADDRESSES.registry,
         data: reg.interface.encodeFunctionData('setPolicy', [stakingBytes32, Number(pMaxShare), Number(pMinUptime), Number(pMaxVal)]),
