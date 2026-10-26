@@ -1,7 +1,6 @@
 'use client';
 import { useState } from 'react';
 import { ethers } from 'ethers';
-import { decodeAddress } from '@polkadot/util-crypto';
 import { useDashboard } from '../DashboardContext';
 import { ADDRESSES, REGISTRY_ABI } from '@/lib/contracts';
 import TxLink from '@/components/TxLink';
@@ -27,9 +26,21 @@ export default function PolicyPage() {
       const reg = new ethers.Contract(ADDRESSES.registry, REGISTRY_ABI, signer);
       let stakingBytes32: string;
       if (pStaking.trim()) {
-        // Decode SS58 → 32-byte public key, then hex-encode as bytes32
-        const pubKey = decodeAddress(pStaking.trim());
-        stakingBytes32 = '0x' + Buffer.from(pubKey).toString('hex');
+        // Decode SS58 → 32-byte public key using base58check
+        // SS58 = [prefix_varint][32-byte pubkey][2-byte checksum]
+        // For single-byte prefix (0–63) the pubkey starts at byte 1
+        const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+        const addr = pStaking.trim();
+        let n = 0n;
+        for (const c of addr) {
+          const idx = BASE58.indexOf(c);
+          if (idx < 0) throw new Error('Invalid SS58 character');
+          n = n * 58n + BigInt(idx);
+        }
+        // Convert bigint to 35-byte array (1 prefix + 32 pubkey + 2 checksum)
+        const bytes = new Uint8Array(35);
+        for (let i = 34; i >= 0; i--) { bytes[i] = Number(n & 0xffn); n >>= 8n; }
+        stakingBytes32 = '0x' + Array.from(bytes.slice(1, 33)).map(b => b.toString(16).padStart(2, '0')).join('');
       } else {
         stakingBytes32 = ethers.zeroPadValue(address, 32);
       }
