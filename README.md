@@ -1,6 +1,6 @@
 # Potake
 
-Potake is an automated staking policy agent for Polkadot. You set rules once — minimum validator uptime, maximum stake concentration, maximum nominations — and the agent enforces them every era, re-nominating automatically if any rule is broken. Every action is written on-chain so anyone can verify what the agent did and why, without trusting the operator.
+Potake automates Polkadot staking — you set rules once (min uptime, max stake concentration, max validators) and the agent re-nominates every era to keep your nominations compliant, with every action logged on-chain as immutable proof.
 
 Built on **Portaldot V3** (pallet-revive / PolkaVM) · Portaldot Hacker House 2026 · Node Operations & Tooling track
 
