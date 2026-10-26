@@ -26,20 +26,22 @@ export default function PolicyPage() {
       const reg = new ethers.Contract(ADDRESSES.registry, REGISTRY_ABI, signer);
       let stakingBytes32: string;
       if (pStaking.trim()) {
-        // Decode SS58 → 32-byte public key using base58check
-        // SS58 = [prefix_varint][32-byte pubkey][2-byte checksum]
-        // For single-byte prefix (0–63) the pubkey starts at byte 1
+        // Decode SS58 → 32-byte public key using base58check (no BigInt literals)
         const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
         const addr = pStaking.trim();
-        let n = 0n;
+        // Accumulate as byte array to avoid BigInt
+        const bytes = new Uint8Array(35);
         for (const c of addr) {
           const idx = BASE58.indexOf(c);
           if (idx < 0) throw new Error('Invalid SS58 character');
-          n = n * 58n + BigInt(idx);
+          let carry = idx;
+          for (let i = 34; i >= 0; i--) {
+            carry += 58 * bytes[i];
+            bytes[i] = carry & 0xff;
+            carry >>= 8;
+          }
         }
-        // Convert bigint to 35-byte array (1 prefix + 32 pubkey + 2 checksum)
-        const bytes = new Uint8Array(35);
-        for (let i = 34; i >= 0; i--) { bytes[i] = Number(n & 0xffn); n >>= 8n; }
+        // bytes = [1 prefix byte][32 pubkey bytes][2 checksum bytes]
         stakingBytes32 = '0x' + Array.from(bytes.slice(1, 33)).map(b => b.toString(16).padStart(2, '0')).join('');
       } else {
         stakingBytes32 = ethers.zeroPadValue(address, 32);

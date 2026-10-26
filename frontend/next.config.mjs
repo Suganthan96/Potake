@@ -7,6 +7,8 @@ const nextConfig = {
     config.resolve.alias['@base-org/account'] = false;
     config.resolve.alias['@x402/evm'] = false;
     config.resolve.alias['@x402/svm/exact/client'] = false;
+    config.resolve.alias['@react-native-async-storage/async-storage'] = false;
+    config.resolve.alias['pino-pretty'] = false;
     return config;
   },
 };
