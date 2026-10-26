@@ -8,15 +8,42 @@ Built on **Portaldot V3** (pallet-revive / PolkaVM) · Portaldot Hacker House 20
 
 ## The Problem
 
-Polkadot staking is entirely manual. When you nominate validators, you pick a set by hand. If a validator goes offline, gets slashed, or becomes over-subscribed, nothing happens automatically — you have to monitor every era (~6 hours) and re-nominate yourself. According to the [Polkadot Wiki on Nomination](https://wiki.polkadot.network/docs/learn-nominator), nominators are expected to actively monitor their validators and update nominations when performance degrades. In practice, most stakers set nominations once and forget, which leads to missed rewards, slash exposure, and stake concentrating on a handful of popular validators — weakening network decentralisation ([Web3 Foundation research on NPoS](https://research.web3.foundation/Polkadot/protocols/NPoS)).
+Polkadot staking is entirely manual today.
 
-The second problem is on the builder side. On **Portaldot V3**, Solidity contracts running in PolkaVM cannot read staking data at all. There are no EVM precompiles for validators, eras, or rewards — a chain inspection confirmed only Assets and Vesting precompiles exist. This means builders cannot create staking-aware DeFi apps on Polkadot's EVM layer, and stakers have no verifiable on-chain record of why their nominations changed.
+When you nominate validators on Polkadot you pick a set of validators by hand. There is no automatic rebalancing. If any nominated validator goes offline, gets slashed, or becomes over-subscribed — **nothing happens automatically**. You have to check back every era (~6 hours on mainnet) and re-nominate by hand. The [Polkadot Wiki on Nomination](https://wiki.polkadot.network/docs/learn-nominator) documents this expectation explicitly — nominators are responsible for actively monitoring validator performance and updating their nominations when it degrades.
+
+Most stakers set their nominations once and forget. The result is:
+
+- Missed rewards when a validator goes inactive
+- Slash exposure when a validator misbehaves
+- Over-concentration of stake on a few popular validators, weakening decentralisation ([Web3 Foundation NPoS research](https://research.web3.foundation/Polkadot/protocols/NPoS))
+
+The second problem is on the builder side. On **Portaldot V3**, Solidity contracts running in PolkaVM cannot read staking data at all. There are no EVM precompiles for validators, eras, or staking rewards. Builders cannot make staking-aware apps, and stakers have no verifiable on-chain record of why their nominations changed.
 
 ---
 
 ## The Solution
 
-Potake solves both problems. It bridges staking data from Substrate into EVM contracts via a relayer-fed `StakingOracle`, and it automates nomination management via a `PolicyRegistry` that stores user-defined rules on-chain. A policy agent reads the oracle and the policy every era, evaluates the managed account's current nominations against the rules, and re-nominates if any rule is broken. The extrinsic hash, the before/after nomination sets, and the rule that triggered the action are all logged in an immutable on-chain record — `registry.actionCount(stakingKey)` is publicly queryable proof that the agent acted autonomously.
+Potake is a **policy-driven, autonomous nomination agent** with on-chain proof of every action it takes.
+
+**You set rules once:**
+
+> "Never nominate a validator with uptime below 95%.  
+> Never let one validator hold more than 50% of my stake.  
+> Nominate at most 16 validators."
+
+Rules are stored in the `PolicyRegistry` smart contract on-chain under your EVM address.
+
+**The agent enforces them every era:**
+
+1. Reads the latest validator snapshot from `StakingOracle`
+2. Reads your policy rules from `PolicyRegistry`
+3. Reads your current nominations from the Substrate staking pallet
+4. Checks all rules — if any is violated (or nominations are empty), picks a compliant set
+5. Signs and submits `staking.nominate` on the Substrate side
+6. Calls `registry.logAction(era, ruleBroken, extrinsicHash, fromSet, toSet)` — an immutable on-chain record
+
+Anyone — including hackathon judges — can query `registry.actionCount(stakingKey)` on-chain and see proof that the agent acted autonomously without human intervention.
 
 ---
 
