@@ -4,12 +4,8 @@ import { getApi } from '../chain/substrate.mjs';
 import { getRelayerSigner, getRegistryContract } from '../chain/evm.mjs';
 import { ethers } from 'ethers';
 
-// Submit staking.nominate(targets) from the managed sr25519 keypair.
-// Returns the extrinsic hash (hex string).
-export async function submitNominate(pair, targets) {
-  const api = await getApi();
-  const tx  = api.tx.staking.nominate(targets);
-
+// Send a single extrinsic and wait for finalization.
+function sendAndWait(api, tx, pair) {
   return new Promise((resolve, reject) => {
     tx.signAndSend(pair, ({ status, dispatchError }) => {
       if (dispatchError) {
@@ -21,11 +17,32 @@ export async function submitNominate(pair, targets) {
         }
         return;
       }
-      if (status.isFinalized) {
-        resolve(status.asFinalized.toHex());
-      }
+      if (status.isFinalized) resolve(status.asFinalized.toHex());
     }).catch(reject);
   });
+}
+
+// Submit staking.nominate(targets) from the managed sr25519 keypair.
+// Auto-bonds 1 unit if the account has never bonded before.
+// Returns the extrinsic hash (hex string).
+export async function submitNominate(pair, targets) {
+  const api = await getApi();
+
+  // Check if already bonded
+  const ledger = await api.query.staking.ledger(pair.address);
+  if (ledger.isNone) {
+    console.log('[agent] account not bonded — bonding 1 planck before nominating…');
+    const minBond = await api.query.staking.minNominatorBond();
+    const ed      = api.consts.balances.existentialDeposit;
+    const bondAmt = minBond.toBigInt() > ed.toBigInt() ? minBond : ed;
+    console.log(`[agent] bonding ${bondAmt} planck…`);
+    const bondTx = api.tx.staking.bond(bondAmt, 'Staked');
+    await sendAndWait(api, bondTx, pair);
+    console.log('[agent] bond finalized');
+  }
+
+  const tx = api.tx.staking.nominate(targets);
+  return sendAndWait(api, tx, pair);
 }
 
 // Log the agent action in PolicyRegistry (called via EVM by the agent signer).

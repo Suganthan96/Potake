@@ -132,9 +132,9 @@ export async function runAgent({ keystorePath, password, dryRun = false } = {}) 
       continue;
     }
 
-    // Need the keypair for the managed account to sign
-    if (!pair || pair.address !== accountSS58) {
-      console.warn('[agent] loaded keypair does not match managed account, skipping nominate');
+    // Need the keypair for the staking account to sign
+    if (!pair || pair.address !== substrateAccount) {
+      console.warn(`[agent] keypair ${pair?.address} does not match staking account ${substrateAccount}, skipping nominate`);
       continue;
     }
 
